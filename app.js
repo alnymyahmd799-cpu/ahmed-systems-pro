@@ -890,24 +890,25 @@ function printInvoice() {
   const content = document.getElementById('printInvoice').innerHTML;
   const win = window.open('', '_blank');
   win.document.write('<html dir="rtl"><head><title>فاتورة</title><style>' +
-    'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;padding:0;margin:0;background:#eef0f3;color:#1a1f36;}' +
-    '.invoice-preview{background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);overflow:hidden;max-width:640px;margin:20px auto;}' +
-    '.invoice-accent{height:6px;background:#1a1f36;}' +
-    '.invoice-body{padding:36px;}' +
-    '.invoice-topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;}' +
-    '.invoice-title{font-size:1.3rem;font-weight:800;color:#1a1f36;}' +
-    '.invoice-badge{background:#1a1f36;color:#fff;font-size:0.72rem;padding:5px 12px;border-radius:20px;font-weight:600;}' +
+    '*{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact;}' +
+    'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;padding:0;margin:0;background:#fff;color:#000;}' +
+    '.invoice-preview{border:1px solid #000;max-width:640px;margin:20px auto;}' +
+    '.invoice-accent{height:4px;background:#000;}' +
+    '.invoice-body{padding:30px;}' +
+    '.invoice-topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:12px;}' +
+    '.invoice-title{font-size:1.3rem;font-weight:800;color:#000;}' +
+    '.invoice-badge{border:1.5px solid #000;color:#000;background:#fff;font-size:0.75rem;padding:5px 12px;border-radius:20px;font-weight:700;}' +
     '.ltr-num{direction:ltr;unicode-bidi:isolate;display:inline-block;}' +
-    '.invoice-details{display:grid;grid-template-columns:1fr 1fr;gap:16px;background:#f9fafb;border-radius:10px;padding:16px;margin-bottom:20px;}' +
-    '.invoice-label{font-size:0.68rem;color:#99a1af;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;display:block;}' +
-    '.invoice-value{font-size:0.88rem;font-weight:600;color:#1a1f36;}' +
-    '.invoice-sub{font-size:0.8rem;color:#666;margin-top:2px;}' +
+    '.invoice-details{display:grid;grid-template-columns:1fr 1fr;gap:16px;border:1px solid #000;border-radius:6px;padding:14px;margin-bottom:18px;}' +
+    '.invoice-label{font-size:0.68rem;color:#000;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;display:block;}' +
+    '.invoice-value{font-size:0.9rem;font-weight:700;color:#000;}' +
+    '.invoice-sub{font-size:0.82rem;color:#000;margin-top:2px;}' +
     'table{width:100%;border-collapse:collapse;margin-bottom:18px;}' +
-    'th{color:#99a1af;padding:8px;font-size:0.72rem;text-transform:uppercase;border-bottom:2px solid #1a1f36;}' +
-    'td{padding:12px 8px;border-bottom:1px solid #eee;font-size:0.87rem;text-align:center;}' +
-    '.invoice-gift-line{font-size:0.8rem;color:#99a1af;text-align:left;margin-bottom:10px;}' +
-    '.invoice-grand-box{background:#1a1f36;color:#fff;border-radius:10px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;font-size:0.95rem;font-weight:700;margin-bottom:6px;}' +
-    '.invoice-footer{text-align:center;margin-top:24px;font-size:0.78rem;color:#99a1af;}' +
+    'th{color:#000;padding:8px;font-size:0.75rem;font-weight:700;text-transform:uppercase;border-bottom:2px solid #000;}' +
+    'td{padding:12px 8px;border-bottom:1px solid #000;font-size:0.88rem;text-align:center;color:#000;}' +
+    '.invoice-gift-line{font-size:0.82rem;color:#000;text-align:left;margin-bottom:10px;}' +
+    '.invoice-grand-box{border:2px solid #000;color:#000;background:#fff;border-radius:6px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;font-size:1rem;font-weight:800;margin-bottom:6px;}' +
+    '.invoice-footer{text-align:center;margin-top:22px;padding-top:12px;border-top:1px solid #000;font-size:0.8rem;color:#000;}' +
     '</style></head><body>' + content + '</body></html>');
   win.document.close();
   win.print();
