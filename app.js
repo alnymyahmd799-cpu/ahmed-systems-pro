@@ -356,11 +356,12 @@ function renderProducts() {
   if(otherList) {
     if(otherTypes.length === 0) { otherList.innerHTML = '<div class="empty-state">لا توجد منتجات.</div>'; }
     else {
-      let html = '<table><tr><th>المنتج</th><th>سعر التكلفة (قطعة)</th><th>سعر البيع (قطعة)</th><th>التعبئة</th><th>تعديل</th><th>حذف</th></tr>';
+      let html = '<table><tr><th>المنتج</th><th>سعر التكلفة</th><th>سعر البيع</th><th>التعبئة</th><th>تعديل</th><th>حذف</th></tr>';
       otherTypes.forEach(t => {
         const hasCarton = t.packetsPerCarton > 0 && t.piecesPerPacket > 0;
-        const packInfo = hasCarton ? (t.packetsPerCarton + ' باكيت × ' + t.piecesPerPacket + ' قطعة = ' + (t.packetsPerCarton * t.piecesPerPacket) + ' قطعة/كرتون') : '-';
-        html += '<tr><td>' + t.icon + ' ' + t.name + '</td><td>' + t.cost.toLocaleString() + '</td><td>' + t.price.toLocaleString() + '</td><td style="font-size:0.75rem;">' + packInfo + '</td>' +
+        const packInfo = hasCarton ? (t.packetsPerCarton + ' باكيت × ' + t.piecesPerPacket + ' قطعة = ' + (t.packetsPerCarton * t.piecesPerPacket) + ' قطعة/كرتون') : 'بالقطعة';
+        const unitTag = hasCarton ? '/كرتون' : '/قطعة';
+        html += '<tr><td>' + t.icon + ' ' + t.name + '</td><td>' + t.cost.toLocaleString() + ' ' + unitTag + '</td><td>' + t.price.toLocaleString() + ' ' + unitTag + '</td><td style="font-size:0.75rem;">' + packInfo + '</td>' +
           '<td><button class="btn-warning" onclick="openProductEditModal(\'other\',\'' + t.name.replace(/'/g,"\\'") + '\')">✏️</button></td>' +
           '<td><button class="btn-danger" onclick="deleteOtherType(\'' + t.name.replace(/'/g,"\\'") + '\')">🗑️</button></td></tr>';
       });
@@ -376,7 +377,8 @@ function openProductEditModal(kind, name) {
   editProductType = kind; editProductName = name;
   const packagingHtml = kind === 'other'
     ? '<div class="two-col"><div class="form-group"><label>باكيتات بالكرتون</label><input type="number" id="editProdPackets" value="' + (prod.packetsPerCarton || '') + '" min="0" placeholder="اختياري"></div>' +
-      '<div class="form-group"><label>قطع بالباكيت</label><input type="number" id="editProdPieces" value="' + (prod.piecesPerPacket || '') + '" min="0" placeholder="اختياري"></div></div>'
+      '<div class="form-group"><label>قطع بالباكيت</label><input type="number" id="editProdPieces" value="' + (prod.piecesPerPacket || '') + '" min="0" placeholder="اختياري"></div></div>' +
+      '<p style="font-size:0.72rem;color:#888;margin:0 0 6px;">إذا فيه تعبئة: السعرين أعلاه للكرتون الكامل. إذا فاضين: السعرين للقطعة.</p>'
     : '';
   document.getElementById('productEditModalContent').innerHTML =
     '<div class="form-group"><label>اسم النوع</label><input type="text" id="editProdName" value="' + prod.name + '"></div>' +
@@ -429,17 +431,34 @@ function otherCartonPieces(prod) {
   if(!prod) return 0;
   return (prod.packetsPerCarton || 0) * (prod.piecesPerPacket || 0);
 }
+function otherUnitPrice(prod, field, unit) {
+  const val = prod[field] || 0;
+  const cartonPieces = otherCartonPieces(prod);
+  if(unit === 'carton') return val; // النوع مسجل بالفعل بسعر الكرتون
+  if(cartonPieces > 0) return Math.round(val / cartonPieces); // تحويل سعر الكرتون إلى سعر القطعة
+  return val; // منتج بدون تعبئة: السعر أصلاً للقطعة
+}
 function updateOtherUnitSelect() {
   const typeSel = document.getElementById('otherType');
   const unitSel = document.getElementById('otherUnit');
   if(!typeSel || !unitSel) return;
   const prod = otherTypes.find(t => t.name === typeSel.value);
   const cartonPieces = otherCartonPieces(prod);
-  let options = '<option value="piece">قطعة</option>';
-  if(cartonPieces > 0) options += '<option value="carton">كرتون (' + cartonPieces + ' قطعة)</option>';
+  let options = cartonPieces > 0 ? '<option value="carton">كرتون (' + cartonPieces + ' قطعة)</option><option value="piece">قطعة</option>' : '<option value="piece">قطعة</option>';
   const prevVal = unitSel.value;
   unitSel.innerHTML = options;
   if(Array.from(unitSel.options).some(o => o.value === prevVal)) unitSel.value = prevVal;
+  else unitSel.value = cartonPieces > 0 ? 'carton' : 'piece';
+}
+function updateOtherPriceFields() {
+  const typeSel = document.getElementById('otherType');
+  const unitSel = document.getElementById('otherUnit');
+  if(!typeSel || !unitSel) return;
+  const prod = otherTypes.find(t => t.name === typeSel.value);
+  if(!prod) return;
+  const unit = unitSel.value;
+  document.getElementById('otherSellPrice').value = otherUnitPrice(prod, 'price', unit);
+  document.getElementById('otherCostPrice').value = otherUnitPrice(prod, 'cost', unit);
 }
 function updateOtherTypeSelect() {
   const sel = document.getElementById('otherType');
@@ -453,12 +472,7 @@ function updateOtherTypeSelect() {
 }
 function fillOtherDefaults() {
   updateOtherUnitSelect();
-  const sel = document.getElementById('otherType');
-  if(!sel || !sel.value) return;
-  const prod = otherTypes.find(t => t.name === sel.value);
-  if(!prod) return;
-  document.getElementById('otherSellPrice').value = prod.price;
-  document.getElementById('otherCostPrice').value = prod.cost;
+  updateOtherPriceFields();
 }
 function fillJuiceDefaults() {
   const sel = document.getElementById('juiceType');
@@ -561,8 +575,8 @@ function addOtherItem() {
   const type = document.getElementById('otherType').value;
   const unit = document.getElementById('otherUnit') ? document.getElementById('otherUnit').value : 'piece';
   const enteredQty = parseFloat(document.getElementById('otherQty').value) || 0;
-  const sellPrice = parseInt(document.getElementById('otherSellPrice').value) || 0;
-  const costPrice = parseInt(document.getElementById('otherCostPrice').value) || 0;
+  const unitSellPrice = parseInt(document.getElementById('otherSellPrice').value) || 0;
+  const unitCostPrice = parseInt(document.getElementById('otherCostPrice').value) || 0;
   const hasGift = document.getElementById('otherHasGift').checked;
   const giftQty = hasGift ? (parseInt(document.getElementById('otherGiftQty').value) || 0) : 0;
   const giftType = hasGift ? document.getElementById('otherGiftType').value : '';
@@ -571,12 +585,17 @@ function addOtherItem() {
   const prod = otherTypes.find(t => t.name === type);
   const cartonPieces = otherCartonPieces(prod);
   const qty = unit === 'carton' ? Math.round(enteredQty * cartonPieces) : Math.round(enteredQty);
-  const unitNote = unit === 'carton' ? (enteredQty + ' كرتون = ' + qty + ' قطعة') : '';
+  const totalCost = enteredQty * unitCostPrice;
+  const totalRevenue = enteredQty * unitSellPrice;
+  const totalProfit = totalRevenue - totalCost;
+  const unitNote = unit === 'carton' ? (enteredQty + ' كرتون (' + qty + ' قطعة) × ' + unitSellPrice.toLocaleString() + ' = ' + totalRevenue.toLocaleString()) : '';
   currentItems.push({ 
-    category: 'منتج إضافي', type: type, qty: qty, costPrice: costPrice, sellPrice: sellPrice, 
-    cost: qty * costPrice, revenue: qty * sellPrice, profit: qty * (sellPrice - costPrice),
+    category: 'منتج إضافي', type: type, qty: qty,
+    costPrice: qty > 0 ? Math.round(totalCost / qty) : unitCostPrice,
+    sellPrice: qty > 0 ? Math.round(totalRevenue / qty) : unitSellPrice,
+    cost: totalCost, revenue: totalRevenue, profit: totalProfit,
     hasGift: hasGift && giftQty > 0, giftQty: giftQty, giftType: giftType,
-    giftCost: hasGift && giftQty > 0 ? giftQty * costPrice : 0,
+    giftCost: hasGift && giftQty > 0 ? giftQty * (qty > 0 ? Math.round(totalCost / qty) : unitCostPrice) : 0,
     unit: unit, unitQty: enteredQty, unitNote: unitNote
   });
   document.getElementById('otherQty').value = 0;

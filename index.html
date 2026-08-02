@@ -106,13 +106,14 @@
         <div class="four-col">
           <div class="form-group"><label>النوع</label><select id="otherType" onchange="fillOtherDefaults()"></select></div>
           <div class="form-group"><label>الكمية</label><input type="number" id="otherQty" value="0" min="0" step="0.5"></div>
-          <div class="form-group"><label>سعر البيع (للقطعة)</label><input type="number" id="otherSellPrice" value="0" min="0"></div>
+          <div class="form-group"><label>سعر البيع</label><input type="number" id="otherSellPrice" value="0" min="0"></div>
           <div class="form-group"><label>&nbsp;</label><button class="btn" onclick="addOtherItem()">➕</button></div>
         </div>
         <div class="two-col" style="margin-top:6px;">
-          <div class="form-group"><label>وحدة الطلب</label><select id="otherUnit"><option value="piece">قطعة</option></select></div>
-          <div class="form-group"><label>سعر الشراء (للقطعة)</label><input type="number" id="otherCostPrice" value="0" min="0"></div>
+          <div class="form-group"><label>وحدة الطلب</label><select id="otherUnit" onchange="updateOtherPriceFields()"><option value="piece">قطعة</option></select></div>
+          <div class="form-group"><label>سعر الشراء</label><input type="number" id="otherCostPrice" value="0" min="0"></div>
         </div>
+        <p style="font-size:0.72rem;color:#888;margin:2px 0 0;">السعرين أعلاه للوحدة المختارة (كرتون كامل أو قطعة) وتتعبى تلقائياً — تكدر تعدلهم يدوياً إذا احتجت.</p>
         <div class="checkbox-group" style="margin-top:8px;"><input type="checkbox" id="otherHasGift" onchange="toggleGiftInput('otherGiftRow')"><label for="otherHasGift" style="margin:0;">🎁 هل يتضمن هدية؟</label></div>
         <div class="gift-row" id="otherGiftRow" style="display:none;">
           <div class="two-col">
@@ -208,15 +209,15 @@
     <div class="card">
       <h2>📦 إضافة منتج آخر جديد</h2>
       <div class="three-col">
-        <div class="form-group"><label>اسم المنتج</label><input type="text" id="newOtherName" placeholder="مثال: ماء"></div>
-        <div class="form-group"><label>سعر التكلفة (للقطعة)</label><input type="number" id="newOtherCost" value="0" min="0"></div>
-        <div class="form-group"><label>سعر البيع (للقطعة)</label><input type="number" id="newOtherPrice" value="0" min="0"></div>
+        <div class="form-group"><label>اسم المنتج</label><input type="text" id="newOtherName" placeholder="مثال: سويس رول"></div>
+        <div class="form-group"><label>سعر التكلفة</label><input type="number" id="newOtherCost" value="0" min="0"></div>
+        <div class="form-group"><label>سعر البيع</label><input type="number" id="newOtherPrice" value="0" min="0"></div>
       </div>
       <div class="two-col" style="margin-top:6px;">
         <div class="form-group"><label>باكيتات بالكرتون (اختياري)</label><input type="number" id="newOtherPackets" min="0" placeholder="مثال: 4"></div>
         <div class="form-group"><label>قطع بالباكيت (اختياري)</label><input type="number" id="newOtherPieces" min="0" placeholder="مثال: 24"></div>
       </div>
-      <p style="font-size:0.75rem;color:#888;margin:4px 0 0;">إذا عبيت هذين الحقلين، بتظهر خيارات "نص كرتون" و"كرتون كامل" عند إضافة المنتج بطلب جديد، ويُحسب السعر والتكلفة تلقائياً حسب عدد القطع.</p>
+      <p style="font-size:0.75rem;color:#888;margin:4px 0 0;">إذا عبيت حقول التعبئة: سعري التكلفة والبيع أعلاه يكونوا <strong>للكرتون الكامل</strong> (مو للقطعة). إذا تركتهم فاضيين: السعرين يكونوا للقطعة الواحدة.</p>
       <button class="btn btn-secondary" onclick="addOtherType()">➕ إضافة منتج</button>
     </div>
     <div class="card">
