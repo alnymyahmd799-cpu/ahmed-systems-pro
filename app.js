@@ -431,34 +431,44 @@ function otherCartonPieces(prod) {
   if(!prod) return 0;
   return (prod.packetsPerCarton || 0) * (prod.piecesPerPacket || 0);
 }
-function otherUnitPrice(prod, field, unit) {
-  const val = prod[field] || 0;
-  const cartonPieces = otherCartonPieces(prod);
-  if(unit === 'carton') return val; // النوع مسجل بالفعل بسعر الكرتون
-  if(cartonPieces > 0) return Math.round(val / cartonPieces); // تحويل سعر الكرتون إلى سعر القطعة
-  return val; // منتج بدون تعبئة: السعر أصلاً للقطعة
-}
-function updateOtherUnitSelect() {
-  const typeSel = document.getElementById('otherType');
-  const unitSel = document.getElementById('otherUnit');
-  if(!typeSel || !unitSel) return;
-  const prod = otherTypes.find(t => t.name === typeSel.value);
-  const cartonPieces = otherCartonPieces(prod);
-  let options = cartonPieces > 0 ? '<option value="carton">كرتون (' + cartonPieces + ' قطعة)</option><option value="piece">قطعة</option>' : '<option value="piece">قطعة</option>';
-  const prevVal = unitSel.value;
-  unitSel.innerHTML = options;
-  if(Array.from(unitSel.options).some(o => o.value === prevVal)) unitSel.value = prevVal;
-  else unitSel.value = cartonPieces > 0 ? 'carton' : 'piece';
+// يبني تسمية الكمية بالكرتون: "كرتون" أو "نصف كرتون" + عدد الباكيتات بين قوسين خفيفة إذا كان معرّفاً
+function formatCartonQtyLabel(cartonQty, packetsPerCarton) {
+  let text;
+  if(Math.abs(cartonQty - 1) < 1e-9) text = 'كرتون';
+  else if(Math.abs(cartonQty - 0.5) < 1e-9) text = 'نصف كرتون';
+  else text = cartonQty + ' كرتون';
+  let packetsPart = '';
+  if(packetsPerCarton > 0) {
+    const packets = Math.round(cartonQty * packetsPerCarton);
+    packetsPart = '(' + packets + ')';
+  }
+  const html = text + (packetsPart ? ' <span class="qty-sub">' + packetsPart + '</span>' : '');
+  const plain = text + (packetsPart ? ' ' + packetsPart : '');
+  return { text: plain, html: html };
 }
 function updateOtherPriceFields() {
   const typeSel = document.getElementById('otherType');
-  const unitSel = document.getElementById('otherUnit');
-  if(!typeSel || !unitSel) return;
+  if(!typeSel) return;
   const prod = otherTypes.find(t => t.name === typeSel.value);
   if(!prod) return;
-  const unit = unitSel.value;
-  document.getElementById('otherSellPrice').value = otherUnitPrice(prod, 'price', unit);
-  document.getElementById('otherCostPrice').value = otherUnitPrice(prod, 'cost', unit);
+  document.getElementById('otherSellPrice').value = prod.price || 0;
+  document.getElementById('otherCostPrice').value = prod.cost || 0;
+}
+function updateOtherCalcPreview() {
+  const preview = document.getElementById('otherCalcPreview');
+  const qtyEl = document.getElementById('otherQty');
+  const typeSel = document.getElementById('otherType');
+  if(!preview || !qtyEl) return;
+  const enteredQty = parseFloat(qtyEl.value) || 0;
+  const unitSellPrice = parseInt(document.getElementById('otherSellPrice').value) || 0;
+  const unitCostPrice = parseInt(document.getElementById('otherCostPrice').value) || 0;
+  if(enteredQty <= 0) { preview.innerHTML = ''; return; }
+  const totalCost = enteredQty * unitCostPrice;
+  const totalRevenue = enteredQty * unitSellPrice;
+  const totalProfit = totalRevenue - totalCost;
+  const prod = typeSel ? otherTypes.find(t => t.name === typeSel.value) : null;
+  const qtyLabel = formatCartonQtyLabel(enteredQty, prod ? (prod.packetsPerCarton || 0) : 0);
+  preview.innerHTML = '💰 لـ ' + qtyLabel.html + ':&nbsp; التكلفة ' + totalCost.toLocaleString() + ' | الإيراد ' + totalRevenue.toLocaleString() + ' | <strong>الربح ' + totalProfit.toLocaleString() + '</strong>';
 }
 function updateOtherTypeSelect() {
   const sel = document.getElementById('otherType');
@@ -471,8 +481,8 @@ function updateOtherTypeSelect() {
   fillOtherDefaults();
 }
 function fillOtherDefaults() {
-  updateOtherUnitSelect();
   updateOtherPriceFields();
+  updateOtherCalcPreview();
 }
 function fillJuiceDefaults() {
   const sel = document.getElementById('juiceType');
@@ -573,7 +583,6 @@ function addCakeItem() {
 }
 function addOtherItem() {
   const type = document.getElementById('otherType').value;
-  const unit = document.getElementById('otherUnit') ? document.getElementById('otherUnit').value : 'piece';
   const enteredQty = parseFloat(document.getElementById('otherQty').value) || 0;
   const unitSellPrice = parseInt(document.getElementById('otherSellPrice').value) || 0;
   const unitCostPrice = parseInt(document.getElementById('otherCostPrice').value) || 0;
@@ -583,12 +592,13 @@ function addOtherItem() {
   if(!type) { alert('أضف منتجاً من تبويب المنتجات أولاً'); return; }
   if(enteredQty <= 0) return;
   const prod = otherTypes.find(t => t.name === type);
+  const packetsPerCarton = prod ? (prod.packetsPerCarton || 0) : 0;
   const cartonPieces = otherCartonPieces(prod);
-  const qty = unit === 'carton' ? Math.round(enteredQty * cartonPieces) : Math.round(enteredQty);
+  const qty = cartonPieces > 0 ? Math.round(enteredQty * cartonPieces) : enteredQty; // للتقارير/احتياجات الشراء
   const totalCost = enteredQty * unitCostPrice;
   const totalRevenue = enteredQty * unitSellPrice;
   const totalProfit = totalRevenue - totalCost;
-  const unitNote = unit === 'carton' ? (enteredQty + ' كرتون (' + qty + ' قطعة) × ' + unitSellPrice.toLocaleString() + ' = ' + totalRevenue.toLocaleString()) : '';
+  const qtyLabel = formatCartonQtyLabel(enteredQty, packetsPerCarton);
   currentItems.push({ 
     category: 'منتج إضافي', type: type, qty: qty,
     costPrice: qty > 0 ? Math.round(totalCost / qty) : unitCostPrice,
@@ -596,9 +606,9 @@ function addOtherItem() {
     cost: totalCost, revenue: totalRevenue, profit: totalProfit,
     hasGift: hasGift && giftQty > 0, giftQty: giftQty, giftType: giftType,
     giftCost: hasGift && giftQty > 0 ? giftQty * (qty > 0 ? Math.round(totalCost / qty) : unitCostPrice) : 0,
-    unit: unit, unitQty: enteredQty, unitNote: unitNote
+    unit: 'carton', cartonQty: enteredQty, packetsPerCarton: packetsPerCarton,
+    unitNote: qtyLabel.text, qtyLabel: qtyLabel.text, qtyLabelHtml: qtyLabel.html
   });
-  document.getElementById('otherQty').value = 0;
   document.getElementById('otherHasGift').checked = false;
   document.getElementById('otherGiftQty').value = 0;
   document.getElementById('otherGiftRow').style.display = 'none';
@@ -618,8 +628,9 @@ function renderItemsList() {
   currentItems.forEach(function(item, i) {
     let icon = item.category === 'عصير' ? '🧃' : item.category === 'كب كيك' ? '🧁' : '📦';
     let giftTag = item.hasGift ? '<span class="item-gift-tag">🎁 ' + item.giftQty + '</span>' : '';
-    let typeCell = item.type + (item.unitNote ? '<br><small style="color:#888;">' + item.unitNote + '</small>' : '');
-    html += '<tr><td>' + icon + ' ' + item.category + ' ' + giftTag + '</td><td>' + typeCell + '</td><td>' + item.qty + '</td><td>' + item.cost.toLocaleString() + '</td><td>' + item.revenue.toLocaleString() + '</td><td class="' + (item.profit>=0?'profit-positive':'profit-negative') + '">' + item.profit.toLocaleString() + '</td><td><button class="btn-warning" onclick="openEditModal(' + i + ')">✏️</button></td><td><button class="btn-danger" onclick="removeItem(' + i + ')">❌</button></td></tr>';
+    let typeCell = item.type;
+    let qtyCell = item.qtyLabelHtml || item.qty;
+    html += '<tr><td>' + icon + ' ' + item.category + ' ' + giftTag + '</td><td>' + typeCell + '</td><td>' + qtyCell + '</td><td>' + item.cost.toLocaleString() + '</td><td>' + item.revenue.toLocaleString() + '</td><td class="' + (item.profit>=0?'profit-positive':'profit-negative') + '">' + item.profit.toLocaleString() + '</td><td><button class="btn-warning" onclick="openEditModal(' + i + ')">✏️</button></td><td><button class="btn-danger" onclick="removeItem(' + i + ')">❌</button></td></tr>';
     totalCost += item.cost; totalRevenue += item.revenue; totalProfit += item.profit;
     if(item.hasGift) totalGiftCost += item.giftCost;
   });
@@ -935,8 +946,15 @@ function previewInvoice() {
   shopOrders.forEach(o => {
     o.items.forEach(item => {
       const existing = itemsList.find(i => i.type === item.type && i.sellPrice === item.sellPrice);
-      if(existing) { existing.qty += item.qty; existing.total += item.revenue; }
-      else itemsList.push({ category: item.category, type: item.type, qty: item.qty, sellPrice: item.sellPrice, total: item.revenue });
+      if(existing) {
+        existing.qty += item.qty; existing.total += item.revenue;
+        if(item.category === 'منتج إضافي') existing.cartonQty = (existing.cartonQty || 0) + (item.cartonQty || 0);
+      }
+      else itemsList.push({
+        category: item.category, type: item.type, qty: item.qty, sellPrice: item.sellPrice, total: item.revenue,
+        cartonQty: item.category === 'منتج إضافي' ? (item.cartonQty || 0) : 0,
+        packetsPerCarton: item.packetsPerCarton || 0
+      });
     });
   });
 
@@ -956,7 +974,10 @@ function previewInvoice() {
 
   let itemsHtml = '';
   itemsList.forEach((item, idx) => {
-    itemsHtml += '<tr><td>' + (idx+1) + '</td><td>' + item.type + '</td><td>' + item.qty + '</td><td>' + item.sellPrice.toLocaleString() + '</td><td>' + item.total.toLocaleString() + '</td></tr>';
+    const qtyDisplay = (item.category === 'منتج إضافي' && item.cartonQty > 0)
+      ? formatCartonQtyLabel(item.cartonQty, item.packetsPerCarton).html
+      : item.qty;
+    itemsHtml += '<tr><td>' + (idx+1) + '</td><td>' + item.type + '</td><td>' + qtyDisplay + '</td><td>' + item.sellPrice.toLocaleString() + '</td><td>' + item.total.toLocaleString() + '</td></tr>';
   });
   let giftHtml = '';
   if(totalGifts > 0) {

@@ -98,6 +98,7 @@
   .gift-row { background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 8px; margin-top: 6px; }
   .gift-row label { font-size: 0.75rem; color: #e65100; }
   .gift-row input, .gift-row select { padding: 6px; font-size: 0.82rem; }
+  .qty-sub { font-weight: 300; color: #9aa7b0; font-size: 0.85em; }
   .item-gift-tag { background: #ff9800; color: white; padding: 1px 6px; border-radius: 10px; font-size: 0.65rem; margin-right: 4px; }
   @media (max-width: 600px) { .two-col, .three-col, .four-col { grid-template-columns: 1fr; } .stats-grid { grid-template-columns: repeat(2, 1fr); } }
   @media print { .header, .tabs, .btn, .search-box, .modal-overlay { display: none !important; } .container { max-width: 100%; padding: 0; } .card { box-shadow: none; border: 1px solid #ddd; } body { background: white; } }
