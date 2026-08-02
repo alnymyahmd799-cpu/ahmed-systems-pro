@@ -27,6 +27,7 @@ let cakeTypes = [
   { name: 'نوتيلا', icon: '🍫', cost: 4125, price: 4750 },
   { name: 'نوتيلا بالبندق', icon: '🌰', cost: 4125, price: 4750 }
 ];
+let otherTypes = [];
 const JUICE_COST = 3250, CAKE_COST = 4125;
 
 // ===== Firebase =====
@@ -54,6 +55,7 @@ function initFirebaseSync() {
   attachSync('reps', reps, data => { reps = data; updateRepSelect(); renderReps(); });
   attachSync('juiceTypes', juiceTypes, data => { juiceTypes = data; updateJuiceTypeSelect(); renderProducts(); });
   attachSync('cakeTypes', cakeTypes, data => { cakeTypes = data; updateCakeTypeSelect(); renderProducts(); });
+  attachSync('otherTypes', otherTypes, data => { otherTypes = data; updateOtherTypeSelect(); renderProducts(); });
   db.ref('invoiceNumbers').on('value', snap => { invoiceNumbers = snap.val() || {}; });
 }
 
@@ -128,7 +130,7 @@ function showTab(tabId) {
   if(tabId === 'invoice') updateInvoiceShopSelect();
   if(tabId === 'reps') renderReps();
   if(tabId === 'products') renderProducts();
-  if(tabId === 'newOrder') { updateJuiceTypeSelect(); updateCakeTypeSelect(); }
+  if(tabId === 'newOrder') { updateJuiceTypeSelect(); updateCakeTypeSelect(); updateOtherTypeSelect(); }
 }
 
 // ===== المندوبين =====
@@ -262,6 +264,7 @@ function updateInvoiceShopSelect() {
 function saveProductTypes() {
   db.ref('juiceTypes').set(juiceTypes);
   db.ref('cakeTypes').set(cakeTypes);
+  db.ref('otherTypes').set(otherTypes);
 }
 function addJuiceType() {
   const name = document.getElementById('newJuiceName').value.trim();
@@ -290,6 +293,29 @@ function addCakeType() {
   document.getElementById('newCakePrice').value = 4750;
   renderProducts(); updateCakeTypeSelect();
   alert('✅ تمت الإضافة!');
+}
+function addOtherType() {
+  const name = document.getElementById('newOtherName').value.trim();
+  const cost = parseInt(document.getElementById('newOtherCost').value) || 0;
+  const price = parseInt(document.getElementById('newOtherPrice').value) || 0;
+  const packetsPerCarton = parseInt(document.getElementById('newOtherPackets').value) || 0;
+  const piecesPerPacket = parseInt(document.getElementById('newOtherPieces').value) || 0;
+  if(!name) { alert('أدخل اسم المنتج'); return; }
+  if(otherTypes.find(t => t.name === name)) { alert('هذا المنتج موجود مسبقاً'); return; }
+  otherTypes.push({ name: name, icon: '📦', cost: cost, price: price, packetsPerCarton: packetsPerCarton, piecesPerPacket: piecesPerPacket });
+  saveProductTypes();
+  document.getElementById('newOtherName').value = '';
+  document.getElementById('newOtherCost').value = 0;
+  document.getElementById('newOtherPrice').value = 0;
+  document.getElementById('newOtherPackets').value = '';
+  document.getElementById('newOtherPieces').value = '';
+  renderProducts(); updateOtherTypeSelect();
+  alert('✅ تمت الإضافة!');
+}
+function deleteOtherType(name) {
+  if(!confirm('حذف هذا المنتج؟')) return;
+  otherTypes = otherTypes.filter(t => t.name !== name);
+  saveProductTypes(); renderProducts(); updateOtherTypeSelect();
 }
 function deleteJuiceType(name) {
   if(!confirm('حذف هذا النوع؟')) return;
@@ -326,31 +352,58 @@ function renderProducts() {
     html += '</table>';
     cakeList.innerHTML = html;
   }
+  const otherList = document.getElementById('otherTypesList');
+  if(otherList) {
+    if(otherTypes.length === 0) { otherList.innerHTML = '<div class="empty-state">لا توجد منتجات.</div>'; }
+    else {
+      let html = '<table><tr><th>المنتج</th><th>سعر التكلفة (قطعة)</th><th>سعر البيع (قطعة)</th><th>التعبئة</th><th>تعديل</th><th>حذف</th></tr>';
+      otherTypes.forEach(t => {
+        const hasCarton = t.packetsPerCarton > 0 && t.piecesPerPacket > 0;
+        const packInfo = hasCarton ? (t.packetsPerCarton + ' باكيت × ' + t.piecesPerPacket + ' قطعة = ' + (t.packetsPerCarton * t.piecesPerPacket) + ' قطعة/كرتون') : '-';
+        html += '<tr><td>' + t.icon + ' ' + t.name + '</td><td>' + t.cost.toLocaleString() + '</td><td>' + t.price.toLocaleString() + '</td><td style="font-size:0.75rem;">' + packInfo + '</td>' +
+          '<td><button class="btn-warning" onclick="openProductEditModal(\'other\',\'' + t.name.replace(/'/g,"\\'") + '\')">✏️</button></td>' +
+          '<td><button class="btn-danger" onclick="deleteOtherType(\'' + t.name.replace(/'/g,"\\'") + '\')">🗑️</button></td></tr>';
+      });
+      html += '</table>';
+      otherList.innerHTML = html;
+    }
+  }
 }
 function openProductEditModal(kind, name) {
-  const list = kind === 'juice' ? juiceTypes : cakeTypes;
+  const list = kind === 'juice' ? juiceTypes : kind === 'cake' ? cakeTypes : otherTypes;
   const prod = list.find(t => t.name === name);
   if(!prod) return;
   editProductType = kind; editProductName = name;
+  const packagingHtml = kind === 'other'
+    ? '<div class="two-col"><div class="form-group"><label>باكيتات بالكرتون</label><input type="number" id="editProdPackets" value="' + (prod.packetsPerCarton || '') + '" min="0" placeholder="اختياري"></div>' +
+      '<div class="form-group"><label>قطع بالباكيت</label><input type="number" id="editProdPieces" value="' + (prod.piecesPerPacket || '') + '" min="0" placeholder="اختياري"></div></div>'
+    : '';
   document.getElementById('productEditModalContent').innerHTML =
     '<div class="form-group"><label>اسم النوع</label><input type="text" id="editProdName" value="' + prod.name + '"></div>' +
     '<div class="two-col"><div class="form-group"><label>سعر التكلفة</label><input type="number" id="editProdCost" value="' + prod.cost + '" min="0"></div>' +
     '<div class="form-group"><label>سعر البيع</label><input type="number" id="editProdPrice" value="' + prod.price + '" min="0"></div></div>' +
+    packagingHtml +
     '<button class="btn" onclick="saveProductEdit()">💾 حفظ</button>';
   document.getElementById('productEditModal').classList.add('active');
 }
 function closeProductEditModal() { document.getElementById('productEditModal').classList.remove('active'); editProductType = ''; editProductName = ''; }
 function saveProductEdit() {
   if(!editProductType || !editProductName) return;
-  const list = editProductType === 'juice' ? juiceTypes : cakeTypes;
+  const list = editProductType === 'juice' ? juiceTypes : editProductType === 'cake' ? cakeTypes : otherTypes;
   const prod = list.find(t => t.name === editProductName);
   if(!prod) return;
   prod.name = document.getElementById('editProdName').value.trim() || prod.name;
   prod.cost = parseInt(document.getElementById('editProdCost').value) || 0;
   prod.price = parseInt(document.getElementById('editProdPrice').value) || 0;
+  if(editProductType === 'other') {
+    const packetsEl = document.getElementById('editProdPackets');
+    const piecesEl = document.getElementById('editProdPieces');
+    prod.packetsPerCarton = packetsEl ? (parseInt(packetsEl.value) || 0) : 0;
+    prod.piecesPerPacket = piecesEl ? (parseInt(piecesEl.value) || 0) : 0;
+  }
   saveProductTypes();
   closeProductEditModal(); renderProducts();
-  updateJuiceTypeSelect(); updateCakeTypeSelect();
+  updateJuiceTypeSelect(); updateCakeTypeSelect(); updateOtherTypeSelect();
 }
 function updateJuiceTypeSelect() {
   const sel = document.getElementById('juiceType');
@@ -371,6 +424,41 @@ function updateCakeTypeSelect() {
   if(giftSel) giftSel.innerHTML = sel.innerHTML;
   if(cakeTypes.find(t => t.name === prevVal)) sel.value = prevVal;
   fillCakeDefaults();
+}
+function otherCartonPieces(prod) {
+  if(!prod) return 0;
+  return (prod.packetsPerCarton || 0) * (prod.piecesPerPacket || 0);
+}
+function updateOtherUnitSelect() {
+  const typeSel = document.getElementById('otherType');
+  const unitSel = document.getElementById('otherUnit');
+  if(!typeSel || !unitSel) return;
+  const prod = otherTypes.find(t => t.name === typeSel.value);
+  const cartonPieces = otherCartonPieces(prod);
+  let options = '<option value="piece">قطعة</option>';
+  if(cartonPieces > 0) options += '<option value="carton">كرتون (' + cartonPieces + ' قطعة)</option>';
+  const prevVal = unitSel.value;
+  unitSel.innerHTML = options;
+  if(Array.from(unitSel.options).some(o => o.value === prevVal)) unitSel.value = prevVal;
+}
+function updateOtherTypeSelect() {
+  const sel = document.getElementById('otherType');
+  const giftSel = document.getElementById('otherGiftType');
+  if(!sel) return;
+  const prevVal = sel.value;
+  sel.innerHTML = otherTypes.map(t => '<option value="' + t.name + '">' + t.icon + ' ' + t.name + '</option>').join('');
+  if(giftSel) giftSel.innerHTML = sel.innerHTML;
+  if(otherTypes.find(t => t.name === prevVal)) sel.value = prevVal;
+  fillOtherDefaults();
+}
+function fillOtherDefaults() {
+  updateOtherUnitSelect();
+  const sel = document.getElementById('otherType');
+  if(!sel || !sel.value) return;
+  const prod = otherTypes.find(t => t.name === sel.value);
+  if(!prod) return;
+  document.getElementById('otherSellPrice').value = prod.price;
+  document.getElementById('otherCostPrice').value = prod.cost;
 }
 function fillJuiceDefaults() {
   const sel = document.getElementById('juiceType');
@@ -470,25 +558,32 @@ function addCakeItem() {
   renderItemsList();
 }
 function addOtherItem() {
-  const name = document.getElementById('otherName').value.trim();
-  const qty = parseInt(document.getElementById('otherQty').value) || 0;
+  const type = document.getElementById('otherType').value;
+  const unit = document.getElementById('otherUnit') ? document.getElementById('otherUnit').value : 'piece';
+  const enteredQty = parseFloat(document.getElementById('otherQty').value) || 0;
   const sellPrice = parseInt(document.getElementById('otherSellPrice').value) || 0;
   const costPrice = parseInt(document.getElementById('otherCostPrice').value) || 0;
   const hasGift = document.getElementById('otherHasGift').checked;
   const giftQty = hasGift ? (parseInt(document.getElementById('otherGiftQty').value) || 0) : 0;
-  const giftName = hasGift ? document.getElementById('otherGiftName').value.trim() : '';
-  if(!name || qty <= 0 || sellPrice <= 0) { alert('أكمل البيانات'); return; }
+  const giftType = hasGift ? document.getElementById('otherGiftType').value : '';
+  if(!type) { alert('أضف منتجاً من تبويب المنتجات أولاً'); return; }
+  if(enteredQty <= 0) return;
+  const prod = otherTypes.find(t => t.name === type);
+  const cartonPieces = otherCartonPieces(prod);
+  const qty = unit === 'carton' ? Math.round(enteredQty * cartonPieces) : Math.round(enteredQty);
+  const unitNote = unit === 'carton' ? (enteredQty + ' كرتون = ' + qty + ' قطعة') : '';
   currentItems.push({ 
-    category: 'منتج إضافي', type: name, qty: qty, costPrice: costPrice, sellPrice: sellPrice, 
+    category: 'منتج إضافي', type: type, qty: qty, costPrice: costPrice, sellPrice: sellPrice, 
     cost: qty * costPrice, revenue: qty * sellPrice, profit: qty * (sellPrice - costPrice),
-    hasGift: hasGift && giftQty > 0, giftQty: giftQty, giftType: giftName,
-    giftCost: hasGift && giftQty > 0 ? giftQty * costPrice : 0
+    hasGift: hasGift && giftQty > 0, giftQty: giftQty, giftType: giftType,
+    giftCost: hasGift && giftQty > 0 ? giftQty * costPrice : 0,
+    unit: unit, unitQty: enteredQty, unitNote: unitNote
   });
-  ['otherName','otherQty','otherSellPrice','otherCostPrice'].forEach(id => document.getElementById(id).value = id === 'otherQty' || id === 'otherSellPrice' || id === 'otherCostPrice' ? '0' : '');
+  document.getElementById('otherQty').value = 0;
   document.getElementById('otherHasGift').checked = false;
   document.getElementById('otherGiftQty').value = 0;
-  document.getElementById('otherGiftName').value = '';
   document.getElementById('otherGiftRow').style.display = 'none';
+  fillOtherDefaults();
   renderItemsList();
 }
 function removeItem(index) { currentItems.splice(index, 1); renderItemsList(); }
@@ -504,7 +599,8 @@ function renderItemsList() {
   currentItems.forEach(function(item, i) {
     let icon = item.category === 'عصير' ? '🧃' : item.category === 'كب كيك' ? '🧁' : '📦';
     let giftTag = item.hasGift ? '<span class="item-gift-tag">🎁 ' + item.giftQty + '</span>' : '';
-    html += '<tr><td>' + icon + ' ' + item.category + ' ' + giftTag + '</td><td>' + item.type + '</td><td>' + item.qty + '</td><td>' + item.cost.toLocaleString() + '</td><td>' + item.revenue.toLocaleString() + '</td><td class="' + (item.profit>=0?'profit-positive':'profit-negative') + '">' + item.profit.toLocaleString() + '</td><td><button class="btn-warning" onclick="openEditModal(' + i + ')">✏️</button></td><td><button class="btn-danger" onclick="removeItem(' + i + ')">❌</button></td></tr>';
+    let typeCell = item.type + (item.unitNote ? '<br><small style="color:#888;">' + item.unitNote + '</small>' : '');
+    html += '<tr><td>' + icon + ' ' + item.category + ' ' + giftTag + '</td><td>' + typeCell + '</td><td>' + item.qty + '</td><td>' + item.cost.toLocaleString() + '</td><td>' + item.revenue.toLocaleString() + '</td><td class="' + (item.profit>=0?'profit-positive':'profit-negative') + '">' + item.profit.toLocaleString() + '</td><td><button class="btn-warning" onclick="openEditModal(' + i + ')">✏️</button></td><td><button class="btn-danger" onclick="removeItem(' + i + ')">❌</button></td></tr>';
     totalCost += item.cost; totalRevenue += item.revenue; totalProfit += item.profit;
     if(item.hasGift) totalGiftCost += item.giftCost;
   });
@@ -529,16 +625,13 @@ function openEditModal(index) {
   const isOther = item.category === 'منتج إضافي';
 
   let giftHtml = '';
-  if(isJuice || isCake) {
+  if(isJuice || isCake || isOther) {
     const giftOptions = isJuice 
       ? juiceTypes.map(t => '<option value="' + t.name + '">' + t.icon + ' ' + t.name + '</option>').join('')
-      : cakeTypes.map(t => '<option value="' + t.name + '">' + t.icon + ' ' + t.name + '</option>').join('');
+      : isCake ? cakeTypes.map(t => '<option value="' + t.name + '">' + t.icon + ' ' + t.name + '</option>').join('')
+      : otherTypes.map(t => '<option value="' + t.name + '">' + t.icon + ' ' + t.name + '</option>').join('');
     giftHtml = '<div class="checkbox-group"><input type="checkbox" id="editHasGift" ' + (item.hasGift?'checked':'') + '><label for="editHasGift" style="margin:0;">🎁 هل يتضمن هدية؟</label></div>' +
       '<div class="gift-row"><div class="two-col"><div class="form-group"><label>نوع الهدية</label><select id="editGiftType">' + giftOptions + '</select></div>' +
-      '<div class="form-group"><label>عدد الهدايا</label><input type="number" id="editGiftQty" value="' + (item.giftQty || 0) + '" min="0"></div></div></div>';
-  } else if(isOther) {
-    giftHtml = '<div class="checkbox-group"><input type="checkbox" id="editHasGift" ' + (item.hasGift?'checked':'') + '><label for="editHasGift" style="margin:0;">🎁 هل يتضمن هدية؟</label></div>' +
-      '<div class="gift-row"><div class="two-col"><div class="form-group"><label>اسم الهدية</label><input type="text" id="editGiftName" value="' + (item.giftType || '') + '"></div>' +
       '<div class="form-group"><label>عدد الهدايا</label><input type="number" id="editGiftQty" value="' + (item.giftQty || 0) + '" min="0"></div></div></div>';
   }
 
@@ -890,25 +983,24 @@ function printInvoice() {
   const content = document.getElementById('printInvoice').innerHTML;
   const win = window.open('', '_blank');
   win.document.write('<html dir="rtl"><head><title>فاتورة</title><style>' +
-    '*{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact;}' +
-    'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;padding:0;margin:0;background:#fff;color:#000;}' +
-    '.invoice-preview{border:1px solid #000;max-width:640px;margin:20px auto;}' +
-    '.invoice-accent{height:4px;background:#000;}' +
-    '.invoice-body{padding:30px;}' +
-    '.invoice-topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:12px;}' +
-    '.invoice-title{font-size:1.3rem;font-weight:800;color:#000;}' +
-    '.invoice-badge{border:1.5px solid #000;color:#000;background:#fff;font-size:0.75rem;padding:5px 12px;border-radius:20px;font-weight:700;}' +
+    'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;padding:0;margin:0;background:#eef0f3;color:#1a1f36;}' +
+    '.invoice-preview{background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);overflow:hidden;max-width:640px;margin:20px auto;}' +
+    '.invoice-accent{height:6px;background:#1a1f36;}' +
+    '.invoice-body{padding:28px;}' +
+    '.invoice-topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}' +
+    '.invoice-title{font-size:1.05rem;font-weight:800;color:#1a1f36;}' +
+    '.invoice-badge{background:#1a1f36;color:#fff;font-size:0.62rem;padding:4px 10px;border-radius:20px;font-weight:600;}' +
     '.ltr-num{direction:ltr;unicode-bidi:isolate;display:inline-block;}' +
-    '.invoice-details{display:grid;grid-template-columns:1fr 1fr;gap:16px;border:1px solid #000;border-radius:6px;padding:14px;margin-bottom:18px;}' +
-    '.invoice-label{font-size:0.68rem;color:#000;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;display:block;}' +
-    '.invoice-value{font-size:0.9rem;font-weight:700;color:#000;}' +
-    '.invoice-sub{font-size:0.82rem;color:#000;margin-top:2px;}' +
-    'table{width:100%;border-collapse:collapse;margin-bottom:18px;}' +
-    'th{color:#000;padding:8px;font-size:0.75rem;font-weight:700;text-transform:uppercase;border-bottom:2px solid #000;}' +
-    'td{padding:12px 8px;border-bottom:1px solid #000;font-size:0.88rem;text-align:center;color:#000;}' +
-    '.invoice-gift-line{font-size:0.82rem;color:#000;text-align:left;margin-bottom:10px;}' +
-    '.invoice-grand-box{border:2px solid #000;color:#000;background:#fff;border-radius:6px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;font-size:1rem;font-weight:800;margin-bottom:6px;}' +
-    '.invoice-footer{text-align:center;margin-top:22px;padding-top:12px;border-top:1px solid #000;font-size:0.8rem;color:#000;}' +
+    '.invoice-details{display:grid;grid-template-columns:1fr 1fr;gap:14px;background:#f9fafb;border-radius:10px;padding:13px;margin-bottom:16px;}' +
+    '.invoice-label{font-size:0.6rem;color:#99a1af;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;display:block;}' +
+    '.invoice-value{font-size:0.75rem;font-weight:600;color:#1a1f36;}' +
+    '.invoice-sub{font-size:0.68rem;color:#666;margin-top:2px;}' +
+    'table{width:100%;border-collapse:collapse;margin-bottom:14px;}' +
+    'th{color:#99a1af;padding:6px;font-size:0.62rem;text-transform:uppercase;border-bottom:2px solid #1a1f36;}' +
+    'td{padding:9px 6px;border-bottom:1px solid #eee;font-size:0.74rem;text-align:center;}' +
+    '.invoice-gift-line{font-size:0.68rem;color:#99a1af;text-align:left;margin-bottom:8px;}' +
+    '.invoice-grand-box{background:#1a1f36;color:#fff;border-radius:10px;padding:11px 15px;display:flex;justify-content:space-between;align-items:center;font-size:0.82rem;font-weight:700;margin-bottom:6px;}' +
+    '.invoice-footer{text-align:center;margin-top:18px;font-size:0.66rem;color:#99a1af;}' +
     '</style></head><body>' + content + '</body></html>');
   win.document.close();
   win.print();
@@ -940,6 +1032,7 @@ updateInvoiceShopSelect();
 updateRepSelect();
 updateJuiceTypeSelect();
 updateCakeTypeSelect();
+updateOtherTypeSelect();
 const needsDateEl = document.getElementById('needsDate');
 if(needsDateEl) needsDateEl.value = getTodayString();
 updateStats();
